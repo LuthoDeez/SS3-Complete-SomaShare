@@ -1,0 +1,191 @@
+
+
+:root {
+    --soma-red:        #c0392b;
+    --soma-red-dark:   #a93226;
+    --soma-red-light:  #e74c3c;
+    --soma-grey:       #f2f2f2;
+    --soma-grey-mid:   #e0e0e0;
+    --soma-grey-dark:  #6c757d;
+    --soma-text:       #2c2c2c;
+}
+
+html, body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--soma-grey);
+    color: var(--soma-text);
+    font-size: 16px;
+}
+
+.navbar {
+    background-color: var(--soma-red) !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.navbar-brand, .nav-link {
+    color: #fff !important;
+}
+
+.nav-link:hover {
+    color: var(--soma-grey-mid) !important;
+}
+
+.nav-link.active {
+    color: #fff !important;
+    font-weight: 600;
+    border-bottom: 2px solid #fff;
+}
+
+.navbar .btn-outline-light:hover {
+    background-color: rgba(255,255,255,0.15);
+}
+
+.btn-primary {
+    background-color: var(--soma-red) !important;
+    border-color: var(--soma-red) !important;
+    color: #fff !important;
+}
+
+.btn-primary:hover, .btn-primary:focus {
+    background-color: var(--soma-red-dark) !important;
+    border-color: var(--soma-red-dark) !important;
+}
+
+.btn-outline-primary {
+    color: var(--soma-red) !important;
+    border-color: var(--soma-red) !important;
+    background-color: transparent !important;
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--soma-red) !important;
+    color: #fff !important;
+}
+
+.btn {
+    border-radius: 8px;
+    transition: all 0.15s ease;
+}
+
+.btn:active { transform: scale(0.97); }
+
+.card {
+    background-color: #ffffff;
+    border-radius: 12px;
+    transition: box-shadow 0.2s ease;
+}
+
+.card:hover {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.10) !important;
+}
+
+.card-header {
+    background-color: var(--soma-grey) !important;
+    border-bottom: 1px solid var(--soma-grey-mid);
+}
+
+
+.table-light {
+    background-color: var(--soma-grey) !important;
+}
+
+.table th {
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background-color: var(--soma-grey);
+}
+
+.table-hover tbody tr:hover {
+    background-color: #fdf0ef;
+}
+
+.form-control, .form-select {
+    border-radius: 8px;
+    border-color: #ced4da;
+    background-color: #fff;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--soma-red);
+    box-shadow: 0 0 0 0.2rem rgba(192, 57, 43, 0.2);
+}
+
+.badge.bg-primary {
+    background-color: var(--soma-red) !important;
+}
+
+.badge {
+    font-weight: 500;
+    border-radius: 6px;
+    font-size: 0.78rem;
+}
+─ */
+a {
+    color: var(--soma-red);
+}
+
+a:hover {
+    color: var(--soma-red-dark);
+}
+
+.hero-section {
+    background: linear-gradient(135deg, var(--soma-red) 0%, var(--soma-red-dark) 100%) !important;
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+}
+
+    color: var(--soma-red);
+    border-color: var(--soma-grey-mid);
+}
+
+.page-link:hover {
+    color: var(--soma-red-dark);
+    background-color: var(--soma-grey);
+}
+
+.page-item.active .page-link {
+    background-color: var(--soma-red) !important;
+    border-color: var(--soma-red) !important;
+    color: #fff !important;
+}
+
+
+.alert {
+    border-radius: 10px;
+    font-size: 0.92rem;
+}
+
+
+.container {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+}
+
+
+.spinner-border {
+    color: var(--soma-red) !important;
+    width: 2.5rem;
+    height: 2.5rem;
+}
+
+
+.input-group-text {
+    background-color: var(--soma-grey);
+    border-color: #ced4da;
+}
+
+
+.card .fs-1 {
+    line-height: 1;
+}
+
+
+@media (max-width: 576px) {
+    .hero-section h1 { font-size: 2rem; }
+}
