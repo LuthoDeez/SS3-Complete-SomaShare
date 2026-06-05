@@ -1,0 +1,129 @@
+@page "/textbooks/create"
+@attribute [Authorize(Roles = "Seller,Admin")]
+@inject TextbookService TextbookService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+<div class="container mt-4" style="max-width: 600px;">
+    <h2 class="fw-bold mb-4">➕ Add Textbook Listing</h2>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">❌ @errorMessage</div>
+    }
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <EditForm Model="model" OnValidSubmit="HandleSubmit">
+                <DataAnnotationsValidator />
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Title *</label>
+                    <InputText class="form-control" @bind-Value="model.Title"
+                               placeholder="e.g. Introduction to Algorithms" />
+                    <ValidationMessage For="@(() => model.Title)" class="text-danger small" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Author</label>
+                    <InputText class="form-control" @bind-Value="model.Author"
+                               placeholder="e.g. Thomas H. Cormen" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">ISBN</label>
+                    <InputText class="form-control" @bind-Value="model.ISBN"
+                               placeholder="e.g. 9780262033848" />
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Condition *</label>
+                        <InputSelect class="form-select" @bind-Value="model.Condition">
+                            <option value="">-- Select condition --</option>
+                            <option>New</option>
+                            <option>Good</option>
+                            <option>Fair</option>
+                            <option>Poor</option>
+                        </InputSelect>
+                        <ValidationMessage For="@(() => model.Condition)" class="text-danger small" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Price (R) *</label>
+                        <InputNumber class="form-control" @bind-Value="model.Price"
+                                     placeholder="e.g. 350" />
+                        <ValidationMessage For="@(() => model.Price)" class="text-danger small" />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Campus</label>
+                    <InputSelect class="form-select" @bind-Value="model.Campus">
+                        <option value="">-- Select campus --</option>
+                        <option>Wits</option><option>UCT</option><option>UNISA</option>
+                        <option>UP</option><option>Stellenbosch</option>
+                        <option>DUT</option><option>UJ</option><option>UKZN</option>
+                        <option>Other</option>
+                    </InputSelect>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Image URL (optional)</label>
+                    <InputText class="form-control" @bind-Value="model.ImageUrl"
+                               placeholder="https://example.com/cover.jpg" />
+                    @if (!string.IsNullOrEmpty(model.ImageUrl))
+                    {
+                        <img src="@model.ImageUrl" class="img-thumbnail mt-2"
+                             style="max-height:150px;" alt="Preview" />
+                    }
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary fw-semibold flex-grow-1"
+                            disabled="@isLoading">
+                        @(isLoading ? "Saving..." : "📤 Publish Listing")
+                    </button>
+                    <a href="/textbooks" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+    private Textbook model = new();
+    private string errorMessage = "";
+    private bool isLoading = false;
+
+    private async Task HandleSubmit()
+    {
+        errorMessage = "";
+        isLoading = true;
+
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            errorMessage = "Session expired. Please log in again.";
+            isLoading = false;
+            return;
+        }
+
+        model.SellerId = userId;
+        model.DatePosted = DateTime.Now;
+        model.IsAvailable = true;
+
+        try
+        {
+            await TextbookService.CreateTextbookAsync(model);
+            NavigationManager.NavigateTo("/textbooks");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+
+        isLoading = false;
+    }
+}

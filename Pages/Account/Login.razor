@@ -1,0 +1,60 @@
+@page "/account/login"
+@using Microsoft.AspNetCore.Components.Web
+<PageTitle>Login - SomaShare</PageTitle>
+
+<div class="container mt-5" style="max-width: 450px;">
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+            <div class="text-center mb-4">
+                <div style="font-size:2.5rem;">📚</div>
+                <h3 class="fw-bold">Login to SomaShare</h3>
+                <p class="text-muted small">Use your university email to sign in.</p>
+            </div>
+
+            @if (error == "fail")
+            {
+                <div class="alert alert-danger">
+                    ❌ Invalid email or password. Please try again.
+                </div>
+            }
+
+            @* 
+                IMPORTANT: field names MUST match LoginHandler parameter names exactly:
+                "Email" and "Password" (capital first letter).
+                We use @onsubmit to POST via standard form — no antiforgery needed
+                because LoginHandler has [IgnoreAntiforgeryToken].
+            *@
+            <form method="post" action="/LoginHandler">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">University Email</label>
+                    <input name="Email" type="email" class="form-control"
+                           placeholder="you@university.ac.za" required />
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Password</label>
+                    <input name="Password" type="password" class="form-control"
+                           placeholder="Enter your password" required />
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 fw-semibold py-2">
+                    🔑 Login
+                </button>
+            </form>
+
+            <hr class="my-3"/>
+
+            <div class="text-center">
+                <a href="/account/register" class="text-decoration-none">
+                    Don't have an account? <strong>Register here</strong>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? error { get; set; }
+}

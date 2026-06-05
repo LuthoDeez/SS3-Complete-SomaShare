@@ -1,0 +1,198 @@
+@page "/offers/make/{textbookId:int}"
+@attribute [Authorize]
+@inject OfferService OfferService
+@inject TextbookService TextbookService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+<div class="container mt-4" style="max-width: 550px;">
+
+    @if (textbook == null && !notFound)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Loading listing...</p>
+        </div>
+    }
+    else if (notFound)
+    {
+        <div class="alert alert-warning">📭 Listing not found or no longer available.</div>
+        <a href="/textbooks" class="btn btn-outline-primary">← Back to Listings</a>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body p-4">
+                <h5 class="text-muted mb-1 small">Making an offer on</h5>
+                <h3 class="fw-bold">@textbook!.Title</h3>
+                <p class="text-muted mb-1">✍️ @(textbook.Author ?? "Unknown")</p>
+                <p class="mb-1">
+                    <span class="badge @ConditionBadge(textbook.Condition)">@textbook.Condition</span>
+                    <span class="ms-2">📍 @(textbook.Campus ?? "Any Campus")</span>
+                </p>
+                <p class="fw-bold text-success fs-4 mb-1">
+                    Listed at: R @textbook.Price.ToString("N0")
+                </p>
+                <p class="text-muted small">
+                    👤 Seller: @(textbook.Seller?.FullName ?? "Unknown")
+                    <span class="badge bg-warning text-dark ms-1">
+                        ⭐ Trust @(textbook.Seller?.TrustScore ?? 0)
+                    </span>
+                </p>
+            </div>
+        </div>
+
+        @* ── Safety Notice (Africanisation - Cash on Meetup) ── *@
+        <div class="alert alert-info d-flex gap-2 align-items-start mb-3">
+            <span style="font-size:1.3rem;">🤝</span>
+            <div>
+                <strong>Cash on Meetup</strong> — SomaShare uses safe campus meetups.
+                Always meet in a public place on campus. No upfront payments.
+                Your transaction is only created when the seller accepts your offer.
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success">✅ @successMessage</div>
+        }
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">❌ @errorMessage</div>
+        }
+
+        @if (!offerSent)
+        {
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3">💰 Your Offer</h5>
+
+                    <EditForm Model="offerModel" OnValidSubmit="SubmitOffer">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Offer Amount (R)</label>
+                            <div class="input-group">
+                                <span class="input-group-text fw-bold">R</span>
+                                <InputNumber class="form-control form-control-lg"
+                                             @bind-Value="offerModel.OfferAmount"
+                                             placeholder="e.g. 300" />
+                            </div>
+                            <ValidationMessage For="@(() => offerModel.OfferAmount)"
+                                               class="text-danger small" />
+                            <div class="form-text">
+                                The seller listed at R @textbook.Price.ToString("N0").
+                                Fair offers get accepted faster!
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary fw-semibold flex-grow-1"
+                                    disabled="@isLoading">
+                                @(isLoading ? "Sending..." : "📨 Send Offer")
+                            </button>
+                            <a href="/textbooks" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-4">
+                <div style="font-size:3rem;">🎉</div>
+                <h5 class="fw-bold mt-2">Offer sent!</h5>
+                <p class="text-muted">You'll see the status in your Dashboard when the seller responds.</p>
+                <a href="/dashboard" class="btn btn-primary me-2">Go to Dashboard</a>
+                <a href="/textbooks" class="btn btn-outline-secondary">Browse More</a>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public int TextbookId { get; set; }
+
+    private Textbook? textbook;
+    private bool notFound = false;
+    private bool offerSent = false;
+    private bool isLoading = false;
+    private string errorMessage = "";
+    private string successMessage = "";
+
+    private OfferFormModel offerModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        textbook = await TextbookService.GetTextbookByIdAsync(TextbookId);
+
+        if (textbook == null || !textbook.IsAvailable)
+        {
+            notFound = true;
+            return;
+        }
+
+        // Redirect if the user is the seller
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = auth.User.FindFirst(
+            System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (textbook.SellerId == userId)
+        {
+            NavigationManager.NavigateTo("/textbooks");
+        }
+    }
+
+    private async Task SubmitOffer()
+    {
+        errorMessage = "";
+        isLoading = true;
+
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = auth.User.FindFirst(
+            System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            errorMessage = "Session expired. Please log in again.";
+            isLoading = false;
+            return;
+        }
+
+        try
+        {
+            var offer = new Offer
+            {
+                TextbookId = TextbookId,
+                BuyerId = userId,
+                OfferAmount = offerModel.OfferAmount
+            };
+
+            await OfferService.CreateOfferAsync(offer);
+            offerSent = true;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+
+        isLoading = false;
+    }
+
+    private string ConditionBadge(string? c) => c switch
+    {
+        "New"  => "bg-success",
+        "Good" => "bg-primary",
+        "Fair" => "bg-warning text-dark",
+        "Poor" => "bg-danger",
+        _      => "bg-secondary"
+    };
+
+    public class OfferFormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.Range(1, 100000,
+            ErrorMessage = "Offer must be between R1 and R100,000")]
+        public decimal OfferAmount { get; set; }
+    }
+}

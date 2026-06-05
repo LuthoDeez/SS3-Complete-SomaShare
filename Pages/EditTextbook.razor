@@ -1,0 +1,130 @@
+@page "/textbooks/edit/{id:int}"
+@attribute [Authorize(Roles = "Seller,Admin")]
+@inject TextbookService TextbookService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+<div class="container mt-4" style="max-width: 600px;">
+    <h2 class="fw-bold mb-4">✏️ Edit Listing</h2>
+
+    @if (notFound)
+    {
+        <div class="alert alert-warning">Listing not found.</div>
+    }
+    else if (model == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+        </div>
+    }
+    else
+    {
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">❌ @errorMessage</div>
+        }
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <EditForm Model="model" OnValidSubmit="HandleSubmit">
+                    <DataAnnotationsValidator />
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Title *</label>
+                        <InputText class="form-control" @bind-Value="model.Title" />
+                        <ValidationMessage For="@(() => model.Title)" class="text-danger small" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Author</label>
+                        <InputText class="form-control" @bind-Value="model.Author" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">ISBN</label>
+                        <InputText class="form-control" @bind-Value="model.ISBN" />
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Condition *</label>
+                            <InputSelect class="form-select" @bind-Value="model.Condition">
+                                <option value="">-- Select condition --</option>
+                                <option>New</option><option>Good</option>
+                                <option>Fair</option><option>Poor</option>
+                            </InputSelect>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Price (R) *</label>
+                            <InputNumber class="form-control" @bind-Value="model.Price" />
+                            <ValidationMessage For="@(() => model.Price)" class="text-danger small" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Campus</label>
+                        <InputSelect class="form-select" @bind-Value="model.Campus">
+                            <option value="">-- Select campus --</option>
+                            <option>Wits</option><option>UCT</option><option>UNISA</option>
+                            <option>UP</option><option>Stellenbosch</option>
+                            <option>DUT</option><option>UJ</option><option>UKZN</option>
+                            <option>Other</option>
+                        </InputSelect>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Image URL</label>
+                        <InputText class="form-control" @bind-Value="model.ImageUrl" />
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary fw-semibold flex-grow-1"
+                                disabled="@isLoading">
+                            @(isLoading ? "Saving..." : "💾 Save Changes")
+                        </button>
+                        <a href="/textbooks" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Textbook? model;
+    private string errorMessage = "";
+    private bool isLoading = false;
+    private bool notFound = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = auth.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        model = await TextbookService.GetTextbookByIdAsync(Id);
+        if (model == null) { notFound = true; return; }
+
+        if (model.SellerId != userId)
+        {
+            NavigationManager.NavigateTo("/textbooks");
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        errorMessage = "";
+        isLoading = true;
+        try
+        {
+            await TextbookService.UpdateTextbookAsync(model!);
+            NavigationManager.NavigateTo("/textbooks");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        isLoading = false;
+    }
+}

@@ -1,0 +1,203 @@
+@page "/account/profile"
+@attribute [Authorize]
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+<div class="container mt-4" style="max-width: 600px;">
+    <h2 class="fw-bold mb-4">👤 My Profile</h2>
+
+    @if (user == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Loading profile...</p>
+        </div>
+    }
+    else
+    {
+        @* ── Profile Info Card ─────────────────────────── *@
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-4">
+                    <div class="rounded-circle bg-primary text-white d-flex align-items-center
+                                justify-content-center me-3"
+                         style="width:60px;height:60px;font-size:1.5rem;">
+                        @(user.FullName?.FirstOrDefault().ToString().ToUpper() ?? "?")
+                    </div>
+                    <div>
+                        <h5 class="mb-0 fw-bold">@user.FullName</h5>
+                        <small class="text-muted">@user.Email</small><br />
+                        <span class="badge bg-warning text-dark">
+                            ⭐ Trust Score: @user.TrustScore / 100
+                        </span>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(successMessage))
+                {
+                    <div class="alert alert-success">✅ @successMessage</div>
+                }
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger">❌ @errorMessage</div>
+                }
+
+                <EditForm Model="profileModel" OnValidSubmit="SaveProfile">
+                    <DataAnnotationsValidator />
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Full Name</label>
+                        <InputText class="form-control" @bind-Value="profileModel.FullName" />
+                        <ValidationMessage For="@(() => profileModel.FullName)" class="text-danger small" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Email (read-only)</label>
+                        <input class="form-control bg-light" value="@user.Email" readonly />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Campus</label>
+                        <InputSelect class="form-select" @bind-Value="profileModel.Campus">
+                            <option value="">-- Select campus --</option>
+                            <option>Wits</option><option>UCT</option><option>UNISA</option>
+                            <option>UP</option><option>Stellenbosch</option>
+                            <option>DUT</option><option>UJ</option><option>UKZN</option>
+                            <option>Other</option>
+                        </InputSelect>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary fw-semibold">
+                        💾 Save Changes
+                    </button>
+                </EditForm>
+            </div>
+        </div>
+
+        @* ── Change Password Card ──────────────────────── *@
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3">🔒 Change Password</h5>
+
+                @if (!string.IsNullOrEmpty(pwSuccessMessage))
+                {
+                    <div class="alert alert-success">✅ @pwSuccessMessage</div>
+                }
+                @if (!string.IsNullOrEmpty(pwErrorMessage))
+                {
+                    <div class="alert alert-danger">❌ @pwErrorMessage</div>
+                }
+
+                <EditForm Model="pwModel" OnValidSubmit="ChangePassword">
+                    <DataAnnotationsValidator />
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Current Password</label>
+                        <InputText type="password" class="form-control"
+                                   @bind-Value="pwModel.CurrentPassword" />
+                        <ValidationMessage For="@(() => pwModel.CurrentPassword)" class="text-danger small" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">New Password</label>
+                        <InputText type="password" class="form-control"
+                                   @bind-Value="pwModel.NewPassword" />
+                        <ValidationMessage For="@(() => pwModel.NewPassword)" class="text-danger small" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Confirm New Password</label>
+                        <InputText type="password" class="form-control"
+                                   @bind-Value="pwModel.ConfirmPassword" />
+                        <ValidationMessage For="@(() => pwModel.ConfirmPassword)" class="text-danger small" />
+                    </div>
+
+                    <button type="submit" class="btn btn-warning fw-semibold">
+                        🔑 Update Password
+                    </button>
+                </EditForm>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private ApplicationUser? user;
+    private ProfileModel profileModel = new();
+    private PasswordModel pwModel = new();
+
+    private string successMessage = "";
+    private string errorMessage = "";
+    private string pwSuccessMessage = "";
+    private string pwErrorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userName = authState.User.Identity?.Name;
+        if (userName != null)
+        {
+            user = await UserManager.FindByNameAsync(userName);
+            if (user != null)
+            {
+                profileModel.FullName = user.FullName;
+                profileModel.Campus = user.Campus ?? "";
+            }
+        }
+    }
+
+    private async Task SaveProfile()
+    {
+        successMessage = ""; errorMessage = "";
+        if (user == null) return;
+
+        user.FullName = profileModel.FullName;
+        user.Campus = profileModel.Campus;
+
+        var result = await UserManager.UpdateAsync(user);
+        if (result.Succeeded)
+            successMessage = "Profile updated successfully!";
+        else
+            errorMessage = string.Join(" ", result.Errors.Select(e => e.Description));
+    }
+
+    private async Task ChangePassword()
+    {
+        pwSuccessMessage = ""; pwErrorMessage = "";
+        if (user == null) return;
+
+        if (pwModel.NewPassword != pwModel.ConfirmPassword)
+        {
+            pwErrorMessage = "New passwords do not match.";
+            return;
+        }
+
+        var result = await UserManager.ChangePasswordAsync(user, pwModel.CurrentPassword, pwModel.NewPassword);
+        if (result.Succeeded)
+        {
+            pwSuccessMessage = "Password changed successfully!";
+            pwModel = new();
+        }
+        else
+            pwErrorMessage = string.Join(" ", result.Errors.Select(e => e.Description));
+    }
+
+    public class ProfileModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public string FullName { get; set; } = "";
+        public string Campus { get; set; } = "";
+    }
+
+    public class PasswordModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public string CurrentPassword { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MinLength(8)]
+        public string NewPassword { get; set; } = "";
+        [System.ComponentModel.DataAnnotations.Required]
+        public string ConfirmPassword { get; set; } = "";
+    }
+}

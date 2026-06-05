@@ -1,0 +1,116 @@
+@page "/wantedads/create"
+@attribute [Authorize]
+@inject WantedAdService WantedAdService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+<div class="container mt-4" style="max-width: 550px;">
+    <h2 class="fw-bold mb-4">🔍 Post a Wanted Ad</h2>
+
+    <p class="text-muted mb-4">
+        Can't find what you need? Let sellers know what you're looking for.
+    </p>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">❌ @errorMessage</div>
+    }
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <EditForm Model="model" OnValidSubmit="HandleSubmit">
+                <DataAnnotationsValidator />
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Textbook Title *</label>
+                    <InputText class="form-control" @bind-Value="model.Title"
+                               placeholder="e.g. Introduction to Statistics" />
+                    <ValidationMessage For="@(() => model.Title)" class="text-danger small" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Course Code</label>
+                    <InputText class="form-control" @bind-Value="model.CourseCode"
+                               placeholder="e.g. STAT101" />
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Maximum Price (R) *</label>
+                    <div class="input-group">
+                        <span class="input-group-text fw-bold">R</span>
+                        <InputNumber class="form-control" @bind-Value="model.MaxPrice"
+                                     placeholder="e.g. 250" />
+                    </div>
+                    <ValidationMessage For="@(() => model.MaxPrice)" class="text-danger small" />
+                    <div class="form-text">
+                        This is the most you're willing to pay.
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary fw-semibold flex-grow-1"
+                            disabled="@isLoading">
+                        @(isLoading ? "Posting..." : "📢 Post Ad")
+                    </button>
+                    <a href="/wantedads" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+    private WantedAdFormModel model = new();
+    private string errorMessage = "";
+    private bool isLoading = false;
+
+    private async Task HandleSubmit()
+    {
+        errorMessage = "";
+        isLoading = true;
+
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        var userId = auth.User.FindFirst(
+            System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            errorMessage = "Session expired. Please log in again.";
+            isLoading = false;
+            return;
+        }
+
+        try
+        {
+            var ad = new WantedAd
+            {
+                Title = model.Title,
+                CourseCode = model.CourseCode,
+                MaxPrice = model.MaxPrice,
+                UserId = userId
+            };
+
+            await WantedAdService.CreateWantedAdAsync(ad);
+            NavigationManager.NavigateTo("/wantedads");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+
+        isLoading = false;
+    }
+
+    public class WantedAdFormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Title is required.")]
+        public string Title { get; set; } = "";
+
+        public string? CourseCode { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Max price is required.")]
+        [System.ComponentModel.DataAnnotations.Range(1, 100000,
+            ErrorMessage = "Price must be between R1 and R100,000.")]
+        public decimal MaxPrice { get; set; }
+    }
+}

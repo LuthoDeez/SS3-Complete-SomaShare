@@ -1,0 +1,419 @@
+@page "/dashboard"
+@attribute [Authorize]
+@inject AuthenticationStateProvider AuthStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject TextbookService TextbookService
+@inject OfferService OfferService
+@inject ReviewService ReviewService
+@inject ApplicationDbContext DbContext
+@using Microsoft.EntityFrameworkCore
+
+<PageTitle>Dashboard - SomaShare</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+        <div>
+            <h2 class="fw-bold mb-0">🏠 My Dashboard</h2>
+            @if (currentUser != null)
+            {
+                <p class="text-muted mb-0">
+                    Welcome back, <strong>@currentUser.FullName</strong>!
+                    <span class="badge bg-warning text-dark ms-2">
+                        ⭐ Trust Score: @currentUser.TrustScore / 100
+                    </span>
+                </p>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert @statusClass alert-dismissible">
+            @statusMessage
+            <button type="button" class="btn-close" @onclick="() => statusMessage = string.Empty"></button>
+        </div>
+    }
+
+    @* ── Summary Cards ────────────────────────────────── *@
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm text-center p-3 h-100">
+                <div style="font-size:2rem;">📚</div>
+                <h4 class="fw-bold mb-0">@myListings.Count</h4>
+                <small class="text-muted">My Listings</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm text-center p-3 h-100">
+                <div style="font-size:2rem;">💰</div>
+                <h4 class="fw-bold mb-0">@myOffers.Count</h4>
+                <small class="text-muted">My Offers</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm text-center p-3 h-100">
+                <div style="font-size:2rem;">🤝</div>
+                <h4 class="fw-bold mb-0">@myTransactions.Count</h4>
+                <small class="text-muted">Transactions</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm text-center p-3 h-100">
+                <div style="font-size:2rem;">⭐</div>
+                <h4 class="fw-bold mb-0">@myReviews.Count</h4>
+                <small class="text-muted">Reviews</small>
+            </div>
+        </div>
+    </div>
+
+    @* ── My Listings ──────────────────────────────────── *@
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center py-3">
+            <h5 class="fw-bold mb-0">📚 My Listings</h5>
+            <a href="/textbooks/create" class="btn btn-sm btn-primary">➕ Add</a>
+        </div>
+        <div class="card-body p-0">
+            @if (!myListings.Any())
+            {
+                <div class="text-center py-4 text-muted">No listings yet.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Title</th><th>Price</th><th>Condition</th>
+                                <th>Status</th><th>Pending Offers</th><th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var book in myListings)
+                            {
+                                var pendingCount = offersOnMyListings
+                                    .Count(o => o.TextbookId == book.TextbookId && o.Status == "Pending");
+                                <tr>
+                                    <td class="fw-semibold">@book.Title</td>
+                                    <td class="text-success fw-bold">R @book.Price.ToString("N0")</td>
+                                    <td><span class="badge @ConditionBadge(book.Condition)">@book.Condition</span></td>
+                                    <td>
+                                        @if (book.IsAvailable)
+                                        {
+                                            <span class="badge bg-success">Available</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Sold</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (pendingCount > 0)
+                                        {
+                                            <span class="badge bg-warning text-dark">@pendingCount pending</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">None</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <a href="/textbooks/edit/@book.TextbookId"
+                                           class="btn btn-sm btn-outline-secondary">✏️</a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    @* ── Pending Offers on My Listings ────────────────── *@
+    @if (offersOnMyListings.Any(o => o.Status == "Pending"))
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-0 py-3">
+                <h5 class="fw-bold mb-0">📨 Pending Offers on My Listings</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th>Textbook</th><th>Buyer</th><th>Offer</th><th>Listed</th><th>Action</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var offer in offersOnMyListings.Where(o => o.Status == "Pending"))
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@(offer.Textbook?.Title ?? "?")</td>
+                                    <td>
+                                        @(offer.Buyer?.FullName ?? "?")
+                                        <span class="badge bg-warning text-dark ms-1">
+                                            ⭐ @(offer.Buyer?.TrustScore ?? 0)
+                                        </span>
+                                    </td>
+                                    <td class="text-success fw-bold">R @offer.OfferAmount.ToString("N0")</td>
+                                    <td class="text-muted">R @(offer.Textbook?.Price.ToString("N0") ?? "?")</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-success me-1"
+                                                @onclick="() => AcceptOffer(offer.OfferId)">
+                                            ✅ Accept
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger"
+                                                @onclick="() => RejectOffer(offer.OfferId)">
+                                            ✕ Reject
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* ── My Offers (as buyer) ─────────────────────────── *@
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-0 py-3">
+            <h5 class="fw-bold mb-0">💰 My Offers</h5>
+        </div>
+        <div class="card-body p-0">
+            @if (!myOffers.Any())
+            {
+                <div class="text-center py-4 text-muted">
+                    No offers yet. <a href="/textbooks">Browse listings</a>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th>Textbook</th><th>My Offer</th><th>Listed Price</th><th>Status</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var offer in myOffers)
+                            {
+                                <tr>
+                                    <td class="fw-semibold">@(offer.Textbook?.Title ?? "?")</td>
+                                    <td class="text-success fw-bold">R @offer.OfferAmount.ToString("N0")</td>
+                                    <td class="text-muted">R @(offer.Textbook?.Price.ToString("N0") ?? "?")</td>
+                                    <td><span class="badge @StatusBadge(offer.Status)">@offer.Status</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    @* ── My Transactions ──────────────────────────────── *@
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-0 py-3">
+            <h5 class="fw-bold mb-0">🤝 My Transactions</h5>
+        </div>
+        <div class="card-body p-0">
+            @if (!myTransactions.Any())
+            {
+                <div class="text-center py-4 text-muted">No transactions yet.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th>Textbook</th><th>Amount</th><th>Payment</th><th>Date</th><th>Status</th><th>Action</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var tx in myTransactions)
+                            {
+                                var sellerId = tx.Offer?.Textbook?.SellerId ?? "";
+                                var alreadyReviewed = reviewsGiven.Any(r => r.RevieweeId == sellerId);
+                                <tr>
+                                    <td class="fw-semibold">@(tx.Offer?.Textbook?.Title ?? "?")</td>
+                                    <td class="text-success fw-bold">R @(tx.Offer?.OfferAmount.ToString("N0") ?? "?")</td>
+                                    <td><span class="badge bg-info text-dark">🤝 @tx.PaymentMethod</span></td>
+                                    <td class="text-muted small">@tx.TransactionDate.ToString("dd MMM yyyy")</td>
+                                    <td>
+                                        @if (tx.IsComplete)
+                                        {
+                                            <span class="badge bg-success">✅ Complete</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning text-dark">⏳ Pending</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (!tx.IsComplete && tx.Offer?.BuyerId == currentUserId)
+                                        {
+                                            <button class="btn btn-sm btn-success"
+                                                    @onclick="() => MarkComplete(tx.TransactionId)">
+                                                ✅ Mark Complete
+                                            </button>
+                                        }
+                                        @if (tx.IsComplete && tx.Offer?.BuyerId == currentUserId
+                                             && !alreadyReviewed && !string.IsNullOrEmpty(sellerId))
+                                        {
+                                            <a href="/reviews/leave/@sellerId"
+                                               class="btn btn-sm btn-outline-warning ms-1">
+                                                ⭐ Review Seller
+                                            </a>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    @* ── Reviews About Me ─────────────────────────────── *@
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white border-0 py-3">
+            <h5 class="fw-bold mb-0">⭐ Reviews About Me</h5>
+        </div>
+        <div class="card-body">
+            @if (!myReviews.Any())
+            {
+                <div class="text-center py-3 text-muted">
+                    No reviews yet. Complete transactions to earn reviews!
+                </div>
+            }
+            else
+            {
+                @foreach (var review in myReviews)
+                {
+                    <div class="border rounded p-3 mb-2">
+                        <div class="d-flex justify-content-between">
+                            <strong>@(review.Reviewer?.FullName ?? "Anonymous")</strong>
+                            <span class="text-warning">
+                                @(new string('⭐', review.Rating))
+                            </span>
+                        </div>
+                        <p class="mb-0 text-muted small mt-1">@review.Comment</p>
+                        <small class="text-muted">@review.DatePosted.ToString("dd MMM yyyy")</small>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private ApplicationUser? currentUser;
+    private string currentUserId = "";
+
+    private List<Textbook> myListings = new();
+    private List<Offer> offersOnMyListings = new();
+    private List<Offer> myOffers = new();
+    private List<Transaction> myTransactions = new();
+    private List<Review> myReviews = new();
+    private List<Review> reviewsGiven = new();
+
+    private string statusMessage = "";
+    private string statusClass = "alert-success";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        currentUserId = auth.User.FindFirst(
+            System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+        currentUser = await UserManager.FindByIdAsync(currentUserId);
+        await LoadAll();
+    }
+
+    private async Task LoadAll()
+    {
+        myListings = await DbContext.Textbooks
+            .Include(t => t.Seller)
+            .Where(t => t.SellerId == currentUserId)
+            .OrderByDescending(t => t.DatePosted)
+            .ToListAsync();
+
+        offersOnMyListings = await DbContext.Offers
+            .Include(o => o.Buyer)
+            .Include(o => o.Textbook)
+            .Where(o => o.Textbook != null && o.Textbook.SellerId == currentUserId)
+            .OrderByDescending(o => o.DateMade)
+            .ToListAsync();
+
+        myOffers = await DbContext.Offers
+            .Include(o => o.Textbook)
+            .Where(o => o.BuyerId == currentUserId)
+            .OrderByDescending(o => o.DateMade)
+            .ToListAsync();
+
+        myTransactions = await DbContext.Transactions
+            .Include(t => t.Offer)
+                .ThenInclude(o => o!.Textbook)
+                    .ThenInclude(tb => tb!.Seller)
+            .Include(t => t.Offer)
+                .ThenInclude(o => o!.Buyer)
+            .Where(t => t.Offer != null &&
+                       (t.Offer.BuyerId == currentUserId ||
+                        (t.Offer.Textbook != null && t.Offer.Textbook.SellerId == currentUserId)))
+            .OrderByDescending(t => t.TransactionDate)
+            .ToListAsync();
+
+        myReviews = await ReviewService.GetReviewsForUserAsync(currentUserId);
+        reviewsGiven = await ReviewService.GetReviewsByUserAsync(currentUserId);
+    }
+
+    private async Task AcceptOffer(int offerId)
+    {
+        try
+        {
+            await OfferService.AcceptOfferAsync(offerId, currentUserId);
+            SetStatus("✅ Offer accepted! Transaction created.", "alert-success");
+            await LoadAll();
+        }
+        catch (Exception ex) { SetStatus($"❌ {ex.Message}", "alert-danger"); }
+    }
+
+    private async Task RejectOffer(int offerId)
+    {
+        try
+        {
+            await OfferService.RejectOfferAsync(offerId, currentUserId);
+            SetStatus("Offer rejected.", "alert-warning");
+            await LoadAll();
+        }
+        catch (Exception ex) { SetStatus($"❌ {ex.Message}", "alert-danger"); }
+    }
+
+    private async Task MarkComplete(int transactionId)
+    {
+        try
+        {
+            await OfferService.MarkTransactionCompleteAsync(transactionId, currentUserId);
+            currentUser = await UserManager.FindByIdAsync(currentUserId);
+            SetStatus("✅ Transaction marked complete! Trust score updated.", "alert-success");
+            await LoadAll();
+        }
+        catch (Exception ex) { SetStatus($"❌ {ex.Message}", "alert-danger"); }
+    }
+
+    private void SetStatus(string msg, string cls) { statusMessage = msg; statusClass = cls; }
+
+    private string ConditionBadge(string? c) => c switch
+    {
+        "New"  => "bg-success",
+        "Good" => "bg-primary",
+        "Fair" => "bg-warning text-dark",
+        "Poor" => "bg-danger",
+        _      => "bg-secondary"
+    };
+
+    private string StatusBadge(string s) => s switch
+    {
+        "Accepted" => "bg-success",
+        "Rejected" => "bg-danger",
+        _          => "bg-warning text-dark"
+    };
+}

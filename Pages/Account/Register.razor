@@ -1,0 +1,173 @@
+@page "/account/register"
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject NavigationManager NavigationManager
+
+<div class="container mt-5" style="max-width: 500px;">
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+            <div class="text-center mb-4">
+                <div style="font-size:2.5rem;">🎓</div>
+                <h3 class="fw-bold">Create Your Account</h3>
+                <p class="text-muted small">University email required (e.g. you@wits.ac.za)</p>
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">❌ @errorMessage</div>
+            }
+
+            <EditForm Model="model" OnValidSubmit="HandleRegister">
+                <DataAnnotationsValidator />
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Full Name</label>
+                    <InputText class="form-control" @bind-Value="model.FullName" placeholder="e.g. Thabo Nkosi" />
+                    <ValidationMessage For="@(() => model.FullName)" class="text-danger small" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">University Email</label>
+                    <InputText class="form-control" @bind-Value="model.Email" placeholder="you@university.ac.za" />
+                    <ValidationMessage For="@(() => model.Email)" class="text-danger small" />
+                    @if (!string.IsNullOrEmpty(model.Email) && !model.Email.EndsWith(".ac.za"))
+                    {
+                        <div class="text-danger small mt-1">⚠️ Must be a university email ending in .ac.za</div>
+                    }
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Campus</label>
+                    <InputSelect class="form-select" @bind-Value="model.Campus">
+                        <option value="">-- Select your campus --</option>
+                        <option>Wits</option>
+                        <option>UCT</option>
+                        <option>UNISA</option>
+                        <option>UP</option>
+                        <option>Stellenbosch</option>
+                        <option>DUT</option>
+                        <option>UJ</option>
+                        <option>UKZN</option>
+                        <option>Other</option>
+                    </InputSelect>
+                    <ValidationMessage For="@(() => model.Campus)" class="text-danger small" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Role</label>
+                    <InputSelect class="form-select" @bind-Value="model.Role">
+                        <option value="">-- I want to... --</option>
+                        <option value="Buyer">Buy textbooks</option>
+                        <option value="Seller">Sell textbooks</option>
+                    </InputSelect>
+                    <ValidationMessage For="@(() => model.Role)" class="text-danger small" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Password</label>
+                    <InputText type="password" class="form-control" @bind-Value="model.Password"
+                               placeholder="Min 8 chars, uppercase, number, symbol" />
+                    <ValidationMessage For="@(() => model.Password)" class="text-danger small" />
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Confirm Password</label>
+                    <InputText type="password" class="form-control" @bind-Value="model.ConfirmPassword"
+                               placeholder="Repeat your password" />
+                    <ValidationMessage For="@(() => model.ConfirmPassword)" class="text-danger small" />
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 fw-semibold" disabled="@isLoading">
+                    @(isLoading ? "Registering..." : "🎓 Register")
+                </button>
+            </EditForm>
+
+            <hr />
+            <div class="text-center">
+                <a href="/account/login" class="text-decoration-none">
+                    Already have an account? <strong>Login here</strong>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private RegisterModel model = new();
+    private string errorMessage = "";
+    private bool isLoading = false;
+
+    private async Task HandleRegister()
+    {
+        errorMessage = "";
+
+        if (!model.Email.EndsWith(".ac.za"))
+        {
+            errorMessage = "Please use a valid university email address ending in .ac.za";
+            return;
+        }
+
+        if (model.Password != model.ConfirmPassword)
+        {
+            errorMessage = "Passwords do not match.";
+            return;
+        }
+
+        if (string.IsNullOrEmpty(model.Role))
+        {
+            errorMessage = "Please select a role (Buyer or Seller).";
+            return;
+        }
+
+        isLoading = true;
+
+        var user = new ApplicationUser
+        {
+            UserName = model.Email,
+            Email = model.Email,
+            FullName = model.FullName,
+            Campus = model.Campus,
+            Role = model.Role,
+            EmailConfirmed = true,
+            DateJoined = DateTime.Now,
+            TrustScore = 0
+        };
+
+        var result = await UserManager.CreateAsync(user, model.Password);
+
+        if (result.Succeeded)
+        {
+            await UserManager.AddToRoleAsync(user, model.Role);
+            NavigationManager.NavigateTo("/account/login");
+        }
+        else
+        {
+            errorMessage = string.Join(" ", result.Errors.Select(e => e.Description));
+        }
+
+        isLoading = false;
+    }
+
+    public class RegisterModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public string FullName { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.EmailAddress]
+        public string Email { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Campus { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Role { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MinLength(8)]
+        public string Password { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string ConfirmPassword { get; set; } = "";
+    }
+}
