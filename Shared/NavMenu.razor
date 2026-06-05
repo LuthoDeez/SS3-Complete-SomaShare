@@ -1,0 +1,118 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using SomaShare.Models
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="/">
+            📚 SomaShare
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <AuthorizeView>
+                    <Authorized>
+                        <li class="nav-item">
+                            <a class="nav-link @IsActive("/dashboard")" href="/dashboard">
+                                🏠 @T("Dashboard")
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @IsActive("/textbooks")" href="/textbooks">
+                                📚 @T("Textbooks")
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @IsActive("/wantedads")" href="/wantedads">
+                                🔍 @T("WantedAds")
+                            </a>
+                        </li>
+                    </Authorized>
+                    <NotAuthorized>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/">@T("Home")</a>
+                        </li>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </ul>
+
+            <ul class="navbar-nav align-items-center gap-2">
+                @* Language Toggle — Africanisation requirement *@
+                <li class="nav-item">
+                    <button class="btn btn-sm btn-outline-light"
+                            @onclick="ToggleLanguage"
+                            title="Switch language / Guqula ulimi">
+                        🌍 @(isZulu ? "English" : "IsiZulu")
+                    </button>
+                </li>
+
+                <AuthorizeView>
+                    <Authorized>
+                        <li class="nav-item">
+                            <a class="nav-link @IsActive("/account/profile")" href="/account/profile">
+                                👤 @T("Profile")
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/account/logout">
+                                🚪 @T("Logout")
+                            </a>
+                        </li>
+                    </Authorized>
+                    <NotAuthorized>
+                        <li class="nav-item">
+                            <a class="nav-link @IsActive("/account/login")" href="/account/login">
+                                🔑 @T("Login")
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="btn btn-sm btn-light text-primary fw-semibold"
+                               href="/account/register">
+                                @T("Register")
+                            </a>
+                        </li>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+@code {
+    // ── Language Toggle (Africanisation — Section 6) ───────────────
+    // Cascading parameter so child pages can read isZulu if needed.
+    // Simple two-language toggle: English ↔ IsiZulu
+    [CascadingParameter] public bool IsZuluCascade { get; set; }
+
+    private bool isZulu = false;
+
+    // Translation dictionary — key terms in both languages
+    private static readonly Dictionary<string, string> Zulu = new()
+    {
+        ["Dashboard"]  = "Ikhasi Lami",
+        ["Textbooks"]  = "Izincwadi",
+        ["WantedAds"]  = "Izicelo",
+        ["Profile"]    = "Iphrofayili",
+        ["Logout"]     = "Phuma",
+        ["Login"]      = "Ngena",
+        ["Register"]   = "Bhalisa",
+        ["Home"]       = "Ikhaya",
+    };
+
+    private string T(string key)
+    {
+        if (isZulu && Zulu.TryGetValue(key, out var val)) return val;
+        return key;
+    }
+
+    private void ToggleLanguage() => isZulu = !isZulu;
+
+    private string IsActive(string href)
+        => NavigationManager.Uri.Contains(href) ? "active" : "";
+}
